@@ -3,13 +3,11 @@ import vue from '@vitejs/plugin-vue'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/testonlinedevsetup/',
   plugins: [vue()],
   server: {
     host: '0.0.0.0',
     port: 5173,
     allowedHosts: true,
-    proxy: {
-      '/api': 'http://localhost:3001',
-    },
   },
 })

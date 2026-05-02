@@ -1,54 +1,68 @@
 <script setup lang="ts">
+import initSqlJs, { type Database } from 'sql.js'
+import sqlWasmUrl from 'sql.js/dist/sql-wasm.wasm?url'
 import { onMounted, ref } from 'vue'
 
 type Message = { id: number; body: string; created_at: string }
 
 const messages = ref<Message[]>([])
 const draft = ref('')
-const error = ref<string | null>(null)
+const ready = ref(false)
+let db: Database
 
-async function load() {
-  const res = await fetch('/api/messages')
-  messages.value = await res.json()
-}
-
-async function submit() {
-  const body = draft.value.trim()
-  if (!body) return
-  error.value = null
-  const res = await fetch('/api/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ body }),
-  })
-  if (!res.ok) {
-    error.value = `Request failed: ${res.status}`
+function refresh() {
+  const result = db.exec('SELECT id, body, created_at FROM messages ORDER BY id DESC')
+  if (!result.length) {
+    messages.value = []
     return
   }
-  draft.value = ''
-  await load()
+  messages.value = result[0].values.map(([id, body, created_at]) => ({
+    id: id as number,
+    body: body as string,
+    created_at: created_at as string,
+  }))
 }
 
-onMounted(load)
+function submit() {
+  const body = draft.value.trim()
+  if (!body) return
+  db.run('INSERT INTO messages (body) VALUES (?)', [body])
+  draft.value = ''
+  refresh()
+}
+
+onMounted(async () => {
+  const SQL = await initSqlJs({ locateFile: () => sqlWasmUrl })
+  db = new SQL.Database()
+  db.run(`
+    CREATE TABLE messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `)
+  ready.value = true
+  refresh()
+})
 </script>
 
 <template>
   <main class="page">
-    <h1>Vite + Vue + SQLite</h1>
-    <p>Messages persist in <code>data.db</code> via the Hono API.</p>
+    <h1>Vite + Vue + sql.js</h1>
+    <p>SQLite runs in your browser via WebAssembly. Data resets on refresh.</p>
 
     <form class="composer" @submit.prevent="submit">
-      <input v-model="draft" placeholder="Write a message" />
-      <button type="submit">Send</button>
+      <input v-model="draft" :disabled="!ready" placeholder="Write a message" />
+      <button type="submit" :disabled="!ready">Send</button>
     </form>
-    <p v-if="error" class="error">{{ error }}</p>
 
     <ul class="messages">
       <li v-for="m in messages" :key="m.id">
         <span class="body">{{ m.body }}</span>
         <span class="meta">{{ m.created_at }}</span>
       </li>
-      <li v-if="!messages.length" class="empty">No messages yet.</li>
+      <li v-if="ready && !messages.length" class="empty">No messages yet.</li>
+      <li v-if="!ready" class="empty">Loading SQLite…</li>
     </ul>
   </main>
 </template>
@@ -91,8 +105,10 @@ button {
   cursor: pointer;
 }
 
-.error {
-  color: #c00;
+button:disabled,
+input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .messages {
