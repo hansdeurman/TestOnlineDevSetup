@@ -13,7 +13,7 @@ const gitSha = (() => {
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/testonlinedevsetup/',
+  base: '/TestOnlineDevSetup/',
   plugins: [vue()],
   define: {
     __GIT_SHA__: JSON.stringify(gitSha),
