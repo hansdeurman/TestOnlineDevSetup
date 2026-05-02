@@ -5,6 +5,9 @@ import { onMounted, ref } from 'vue'
 
 type Message = { id: number; body: string; created_at: string }
 
+const gitSha = __GIT_SHA__
+const buildTime = __BUILD_TIME__
+
 const messages = ref<Message[]>([])
 const draft = ref('')
 const ready = ref(false)
@@ -64,6 +67,8 @@ onMounted(async () => {
       <li v-if="ready && !messages.length" class="empty">No messages yet.</li>
       <li v-if="!ready" class="empty">Loading SQLite…</li>
     </ul>
+
+    <footer class="build">build {{ gitSha }} · {{ buildTime }}</footer>
   </main>
 </template>
 
@@ -135,5 +140,13 @@ input:disabled {
 .messages .empty {
   color: #888;
   justify-content: center;
+}
+
+.build {
+  margin-top: 2rem;
+  color: #aaa;
+  font-size: 0.75rem;
+  font-family: ui-monospace, monospace;
+  text-align: center;
 }
 </style>
